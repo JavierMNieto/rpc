@@ -463,6 +463,68 @@ func TestContext(t *testing.T) {
 	}
 }
 
+type ContextValueService struct{}
+
+type StoreArgs struct {
+	Key   string
+	Value string
+}
+
+func (s *ContextValueService) Store(ctx context.Context, args StoreArgs, reply *bool) error {
+	data := GetDataFromContext(ctx)
+	if data == nil {
+		return errors.New("no data in context")
+	}
+	data.Store(args.Key, args.Value)
+	*reply = true
+	return nil
+}
+
+func (s *ContextValueService) Get(ctx context.Context, key string, reply *string) error {
+	data := GetDataFromContext(ctx)
+	if data == nil {
+		return errors.New("no data in context")
+	}
+	value, ok := data.Load(key)
+	if !ok {
+		return errors.New("no value for key")
+	}
+	*reply = value.(string)
+	return nil
+}
+
+func TestContextValue(t *testing.T) {
+	Register(new(ContextValueService))
+	var l net.Listener
+	l, serverAddr = listenTCP()
+	log.Println("Test RPC server listening on", serverAddr)
+	go Accept(l)
+
+	HandleHTTP()
+	httpOnce.Do(startHttpServer)
+
+	client, err := DialHTTP("tcp", httpServerAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+
+	var (
+		key       = "key"
+		wantValue = "value"
+	)
+	if err := client.Call(context.Background(), "ContextValueService.Store", StoreArgs{key, wantValue}, new(bool)); err != nil {
+		t.Fatal(err)
+	}
+	var haveValue string
+	if err := client.Call(context.Background(), "ContextValueService.Get", key, &haveValue); err != nil {
+		t.Fatal(err)
+	}
+	if wantValue != haveValue {
+		t.Fatalf("want %q, have %q", wantValue, haveValue)
+	}
+}
+
 type JsonServer struct {
 	srv *Server
 }
