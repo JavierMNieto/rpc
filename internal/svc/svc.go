@@ -21,7 +21,8 @@ func NewPending(parent context.Context) *Pending {
 }
 
 func (s *Pending) Start(seq uint64) context.Context {
-	ctx, cancel := context.WithCancel(s.parent)
+	parentCtx, cancel := context.WithCancel(s.parent)
+	ctx := context.WithValue(parentCtx, "data", s.parent.Value("data"))
 	s.mu.Lock()
 	// we assume seq is not already in map. If not, the client is broken.
 	s.m[seq] = cancel

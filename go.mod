@@ -1,3 +1,3 @@
-module github.com/keegancsmith/rpc
+module github.com/JavierMNieto/rpc
 
 go 1.18
